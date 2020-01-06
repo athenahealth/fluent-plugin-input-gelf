@@ -9,7 +9,7 @@ A GELF compatible input for [Fluentd](http://www.fluentd.org/).
 
 ### Configuration
 
-Accept GELF encoded messages over UDP
+Accept GELF encoded messages over UDP or TCP
 
 ```
 <source>
@@ -51,5 +51,4 @@ Accept GELF encoded messages over UDP
     * remove_timestamp_record (default: true) (ignored if trust_client_timestamp is false)
       * true  (remove original timestamp record from client provided document)
       * false (retain original record and set fluent metadata time
-
 
