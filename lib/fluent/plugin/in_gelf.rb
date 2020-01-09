@@ -34,8 +34,6 @@ module Fluent::Plugin
     config_param :remove_timestamp_record, :bool, default: true
     desc 'use client provided timestamp'
     config_param :trust_client_timestamp, :bool, default: true
-    desc 'truncate client timestamp to integer'
-    config_param :client_timestamp_to_i, :bool, default: false
 
     config_section :parse do
       config_set_default :@type, DEFAULT_PARSER
@@ -76,20 +74,20 @@ module Fluent::Plugin
         end
 
         if @trust_client_timestamp && record.key?('timestamp')
-          # Fluent "time" is made up of 2 records; time_t and nsec; you can't cast a float
-          # to time; instead you must convert the remainder to a nsec INT.
-          seconds = record['timestamp'].to_i
-          if @client_timestamp_to_i
-            time = Fluent::EventTime.new(seconds)
-          else
-            nsec = ((record['timestamp'].to_f  - record['timestamp'].to_i)  * 1_000_000_000).to_i
-            time = Fluent::EventTime.new(seconds, nsec)
+          # Use the recorded event time if available and correctly formatted
+          second, subsecond = record['timestamp'].to_s.split('.')
+          subsecond ||= 0 
+          begin
+            if Integer(second) && Integer(subsecond)
+              nsec = subsecond.to_s.ljust(9,"0")
+              time = Fluent::EventTime.new(second.to_i, nsec.to_i)
+            end
+          rescue 
+            log.warn "inproperly formatted timestamp: #{msg.inspect}"
           end
-          record.delete('timestamp') if @remove_timestamp_record
-        else
-          # if not trusting client timestamp or no timestamp provided
-          time = Fluent::EventTime.now
+          record.delete('timestamp') if record.key?('timestamp') && @remove_timestamp_record
         end
+
 
         # Postprocess recorded event
         strip_leading_underscore_(record) if @strip_leading_underscore
